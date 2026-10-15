@@ -34,3 +34,23 @@ The pipeline follows one rule: flag suspect rows, never silently delete them.
 4. Flag suspect rows. A dq_flags column records the reason, for example HP_AT_CAP, ACCEL_VS_HP, L3_ON_BUDGET, LOW_SALES and PRICE_OUTLIER (more than 3 standard deviations from the segment mean).
 5. Build a trusted view. ev_market_trusted drops only the rows with hard logical contradictions and keeps the capped-value rows, because excluding them would discard about 46% of the data.
 6. Validate A set of PASS/FAIL checks confirms row counts, missing values, whitespace, duplicates and value ranges.
+
+
+# Results
+|Table / view	        |  Rows     |
+|---------------------|-----------|
+| Source	             | 2,000     |
+| ev_market_clean	    | 2,000     |
+| Flagged rows        |	926       | 
+| ev_market_trusted	  | 1,904     |
+
+
+# SQL techniques used
+* TRIM, NULLIF, CAST, UPPER for standardising
+* CHECK constraints and ENUM types for data integrity
+* Window functions: ROW_NUMBER() for de-duplication and COUNT() OVER for key-level duplicate detection
+* Self-joined aggregates (AVG, STDDEV_POP) for statistical outlier detection
+* CONCAT_WS to build multi-reason flags
+* JSON_TABLE to split flags into rows for counting
+* Views for a reusable, filtered output
+* UNION ALL validation queries returning PASS/FAIL
