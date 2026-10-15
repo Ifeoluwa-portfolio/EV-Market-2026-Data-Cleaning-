@@ -11,3 +11,26 @@ ev_market_2026.csv has 2,000 rows and 24 columns. Each row is one vehicle config
 Performance	            | acceleration_0_60_mph, top_speed_mph, horsepower, torque_nm, drive_type |
 Body and practicality	  | body_type, seating_capacity, cargo_volume_cubic_ft, weight_kg           |
 Ratings and features	  |  safety_rating, autopilot_level, customer_rating, warranty_years        |
+
+# What the profiling found
+
+At first glance the data looked clean: no nulls, no blanks, no stray whitespace, no exact duplicate rows, and consistent category labels. The real problems were logical, not formatting ones.
+
+| Issue	                   | Finding                                                                       |
+| -------------------------| ------------------------------------------------------------------------------|
+| No natural key	         | 1,408 rows share the same brand, model, year and variant as another row, but differ in price                                and specs. They are not true duplicates, so they were reported rather than deleted. |
+Clamped values	422 rows (21%) have horsepower of exactly 1000, and 162 have a top speed of exactly 200 mph. There are also pile-ups at the minimum for weight, torque and range. These look like capped values, not real measurements.
+Contradictory specs	83 rows have performance figures that conflict, such as a 0-60 time over 7 seconds with more than 900 hp.
+Unreliable body type	The same model appears under several body types.
+Odd brand/model pairs	For example, a BYD "Leaf 50X" (Leaf is a Nissan name).
+Mixed units	Miles, mph and cubic feet sit alongside kg, Nm and kW.
+Approach
+
+The pipeline follows one rule: flag suspect rows, never silently delete them.
+
+Create a typed table. ev_market_clean uses proper types (DECIMAL for money, an ENUM for drive type, small integer types for ratings) plus CHECK constraints that reject impossible values.
+Copy and clean. Text is trimmed, blanks become NULL, and values are cast to their correct types.
+Remove exact duplicates. This uses ROW_NUMBER() OVER (PARTITION BY ...) across every column. It removed 0 rows here but makes the script reusable.
+Flag suspect rows. A dq_flags column records the reason, for example HP_AT_CAP, ACCEL_VS_HP, L3_ON_BUDGET, LOW_SALES and PRICE_OUTLIER (more than 3 standard deviations from the segment mean).
+Build a trusted view. ev_market_trusted drops only the rows with hard logical contradictions and keeps the capped-value rows, because excluding them would discard about 46% of the data.
+Validate. A set of PASS/FAIL checks confirms row counts, missing values, whitespace, duplicates and value ranges.
