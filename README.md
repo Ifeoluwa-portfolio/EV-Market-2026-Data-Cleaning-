@@ -54,3 +54,6 @@ The pipeline follows one rule: flag suspect rows, never silently delete them.
 * JSON_TABLE to split flags into rows for counting
 * Views for a reusable, filtered output
 * UNION ALL validation queries returning PASS/FAIL
+
+# Preview
+https://github.com/Ifeoluwa-portfolio/EV-Market-2026-Data-Cleaning-/commit/bb2325d11c47b3c9542692bc783fba88e93b31fc
